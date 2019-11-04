@@ -30,7 +30,7 @@ func main() {
 
 	//client()
 
-	exit()
+	acl()
 }
 
 /**
@@ -41,6 +41,14 @@ func main() {
 4. 开启统计
 
 */
+
+func acl() {
+	// 1 2 4 8
+	fmt.Println(8 | 4)
+	fmt.Println(7 | 1)
+	fmt.Println(7 | 2)
+	fmt.Println(7 | 4)
+}
 
 func client() {
 

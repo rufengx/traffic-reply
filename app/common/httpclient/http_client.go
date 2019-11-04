@@ -13,6 +13,7 @@ import (
 )
 
 const defaultUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36"
+const defaultTimeoutMs = 1000
 
 type HttpRequestConfig struct {
 	TimeoutMs       int  `yaml:"timeout_ms"`
@@ -68,8 +69,12 @@ func NewHttpClient(config *HttpRequestConfig) (*HttpClient, error) {
 	}
 
 	// step 3: build http client
+	timeout := config.TimeoutMs
+	if timeout == 0 {
+		timeout = defaultTimeoutMs
+	}
 	httpClient := &http.Client{
-		Timeout: time.Duration(config.TimeoutMs) * time.Millisecond,
+		Timeout: time.Duration(timeout) * time.Millisecond,
 		Jar:     jar,
 	}
 	if nil != transport {

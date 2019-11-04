@@ -18,7 +18,7 @@ const (
 
 const AllDevice = "all"
 
-type listener struct {
+type Listener struct {
 	mutex sync.RWMutex
 
 	readMode     int
@@ -30,7 +30,7 @@ type listener struct {
 	exit        bool
 }
 
-func NewListener(readMode int, deviceName, filename string, bpfFilter string) (*listener, error) {
+func NewListener(readMode int, deviceName, filename string, bpfFilter string) (*Listener, error) {
 	// validate file is exist
 	if readMode == ReadModeOnFile {
 		if "" == filename || len(filename) == 0 {
@@ -50,7 +50,7 @@ func NewListener(readMode int, deviceName, filename string, bpfFilter string) (*
 		}
 	}
 
-	return &listener{
+	return &Listener{
 		mutex:        sync.RWMutex{},
 		readMode:     readMode,
 		deviceName:   deviceName,
@@ -61,7 +61,7 @@ func NewListener(readMode int, deviceName, filename string, bpfFilter string) (*
 	}, nil
 }
 
-func (l *listener) Listen() (<-chan gopacket.Packet, error) {
+func (l *Listener) Listen() (<-chan gopacket.Packet, error) {
 	var err error
 	if l.readMode == ReadModeOnLive {
 		err = l.openLivePcap()
@@ -72,7 +72,7 @@ func (l *listener) Listen() (<-chan gopacket.Packet, error) {
 	return l.receiveChan, err
 }
 
-func (l *listener) openLivePcap() error {
+func (l *Listener) openLivePcap() error {
 	devices, err := pcap.FindAllDevs()
 	if nil != err {
 		panic(err)
@@ -120,7 +120,7 @@ func (l *listener) openLivePcap() error {
 	return nil
 }
 
-func (l *listener) readPcapFile() error {
+func (l *Listener) readPcapFile() error {
 	handle, err := pcap.OpenOffline(l.pcapFilename)
 	if nil != err {
 		return err
@@ -150,7 +150,7 @@ func (l *listener) readPcapFile() error {
 	return nil
 }
 
-func (l *listener) Close() {
+func (l *Listener) Close() {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	l.exit = true

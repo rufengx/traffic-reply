@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"strconv"
 	"time"
+	"xtransform/app/common/httphandle"
 	"xtransform/app/config"
 )
 
@@ -13,7 +15,9 @@ import (
 type HttpInputPlugin struct {
 	httpServerConfig *config.HttpServerConfig
 
-	receiveChan chan []byte
+	msgLevel    int
+	pluginName  string
+	receiveChan chan *message
 	httpServer  *http.Server
 
 	IsDebug bool
@@ -23,11 +27,12 @@ func NewHttpInputPlugin(config *config.HttpServerConfig) (*HttpInputPlugin, erro
 	if nil == config {
 		return nil, errors.New("params is empty")
 	}
+	plugin := new(HttpInputPlugin)
+	plugin.msgLevel = msgLevelHttp
+	plugin.pluginName = pluginNameInputHttp
+	plugin.httpServerConfig = config
+	plugin.receiveChan = make(chan *message, 4096)
 
-	plugin := &HttpInputPlugin{
-		httpServerConfig: config,
-		receiveChan:      make(chan []byte, 4096),
-	}
 	if err := plugin.listen(); nil != err {
 		return nil, err
 	}
@@ -35,8 +40,12 @@ func NewHttpInputPlugin(config *config.HttpServerConfig) (*HttpInputPlugin, erro
 }
 
 // Read request to data, transfer to next plugin.
-func (plugin *HttpInputPlugin) GetContent() <-chan []byte {
+func (plugin *HttpInputPlugin) GetMessage() <-chan *message {
 	return plugin.receiveChan
+}
+
+func (plugin *HttpInputPlugin) Write(msg *message) (err error) {
+	return nil
 }
 
 func (plugin *HttpInputPlugin) listen() error {
@@ -49,7 +58,7 @@ func (plugin *HttpInputPlugin) listen() error {
 	mux.HandleFunc("/", plugin.handler)
 
 	httpServer := &http.Server{
-		Addr:           config.Addr,
+		Addr:           config.Addr + ":" + strconv.Itoa(config.Port),
 		Handler:        mux,
 		ReadTimeout:    time.Duration(config.RTimeoutMs) * time.Millisecond,
 		WriteTimeout:   time.Duration(config.WTimeoutMs) * time.Millisecond,
@@ -57,19 +66,31 @@ func (plugin *HttpInputPlugin) listen() error {
 		MaxHeaderBytes: config.MaxHeaderBytes,
 	}
 	plugin.httpServer = httpServer
-	err := plugin.httpServer.ListenAndServe()
-	return err
+	go func() {
+		err := plugin.httpServer.ListenAndServe()
+		panic(err)
+	}()
+	log.Printf("[Http-input-plugin] http server addr '%v'", httpServer.Addr)
+	return nil
 }
 
 func (plugin *HttpInputPlugin) handler(w http.ResponseWriter, r *http.Request) {
 	// Dump request body to receive queue.
-	req, err := httputil.DumpRequest(r, true)
-	http.Error(w, err.Error(), 200)
-	plugin.receiveChan <- req
+	reqData, err := httputil.DumpRequest(r, true)
+	if nil != err {
+		httphandle.WriteJsonRaw(w, httphandle.CONFLICT, err.Error())
+	} else {
+		plugin.receiveChan <- &message{msgLevel: plugin.msgLevel, rawData: reqData, timestampNano: time.Now().UnixNano()}
+		httphandle.WriteJson(w, httphandle.OK)
+	}
 
 	if plugin.IsDebug {
-		log.Printf("Input-http-plugin receive request: \n %v \n", req)
+		log.Printf("Input-http-plugin receive request: \n %v \n", reqData)
 	}
+}
+
+func (plugin *HttpInputPlugin) GetPluginName() string {
+	return plugin.pluginName
 }
 
 func (plugin *HttpInputPlugin) Close() {
