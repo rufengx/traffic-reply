@@ -27,8 +27,6 @@ type HttpOutputPlugin struct {
 
 	receiveChan chan *message
 
-	httpRequestChan chan *http.Request
-
 	exit    bool
 	IsDebug bool
 }
@@ -54,13 +52,12 @@ func NewOutputHttpPlugin(config *config.HttpOutputConfig) (*HttpOutputPlugin, er
 	}
 
 	plugin := &HttpOutputPlugin{
-		msgLevel:        msgLevelPacket + msgLevelTcp + msgLevelHttp,
-		pluginName:      pluginNameOutputHttp,
-		workers:         config.Workers,
-		redirectUrl:     redirectUrl,
-		httpClient:      httpClient,
-		receiveChan:     make(chan *message, 4096),
-		httpRequestChan: make(chan *http.Request, 4096),
+		msgLevel:    msgLevelPacket + msgLevelTcp + msgLevelHttp,
+		pluginName:  pluginNameOutputHttp,
+		workers:     config.Workers,
+		redirectUrl: redirectUrl,
+		httpClient:  httpClient,
+		receiveChan: make(chan *message, 4096),
 	}
 
 	go plugin.Run()
