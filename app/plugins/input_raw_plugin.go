@@ -2,12 +2,14 @@ package plugins
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -103,7 +105,7 @@ func (plugin *RawInputPlugin) processPacket(receivePacketChan <-chan gopacket.Pa
 	timeout := time.Duration(50) * time.Millisecond
 	timer := time.NewTimer(timeout)
 
-	streamFactory := &httpStreamFactory{}
+	streamFactory := &customStreamFactory{}
 	streamPool := tcpassembly.NewStreamPool(streamFactory)
 	assembler := tcpassembly.NewAssembler(streamPool)
 
@@ -115,13 +117,19 @@ func (plugin *RawInputPlugin) processPacket(receivePacketChan <-chan gopacket.Pa
 
 		select {
 		case packet := <-receivePacketChan:
-			// case 1: parse raw packet
+			// case 1: tcp, http
 			if packet.NetworkLayer() == nil || packet.TransportLayer() == nil || packet.TransportLayer().LayerType() != layers.LayerTypeTCP {
 				log.Println("Unusable packet: ", packet)
 				continue
 			}
 			tcp := packet.TransportLayer().(*layers.TCP)
 			assembler.AssembleWithTimestamp(packet.NetworkLayer().NetworkFlow(), tcp, packet.Metadata().Timestamp)
+
+			// case 2: udp
+			// TODO:
+
+			// case 3: socket
+			// TODO:
 
 		case <-ticker:
 			// Every minute, flush connections that haven't seen activity in the past 2 minutes.
@@ -149,42 +157,52 @@ func (plugin *RawInputPlugin) Write(msg *message) (err error) {
 	if plugin.exit {
 		return errors.New("input-raw-plugin already closed")
 	}
-	plugin.receiveChan <- msg
+	//plugin.receiveChan <- msg
 	return nil
 }
 
 // help func ===========================================================================================================
-type httpStreamFactory struct{}
+
+// parse packet, generate http request.
+type customStreamFactory struct{}
 
 // httpStream will handle the actual decoding of http requests.
-type httpStream struct {
+type customStream struct {
 	netFlow, tcpFlow gopacket.Flow
 	reader           tcpreader.ReaderStream
 }
 
-func (factory *httpStreamFactory) New(netFlow, tcpFlow gopacket.Flow) tcpassembly.Stream {
+func (factory *customStreamFactory) New(netFlow, tcpFlow gopacket.Flow) tcpassembly.Stream {
 	reader := tcpreader.NewReaderStream()
 	reader.LossErrors = false
-	httpStream := &httpStream{
+	customStream := &customStream{
 		netFlow: netFlow,
 		tcpFlow: tcpFlow,
 		reader:  reader,
 	}
-	go httpStream.run() // start process http request
-	return &httpStream.reader
+	go customStream.run() // start process http request
+	return &customStream.reader
 }
 
-func (h *httpStream) run() {
-	buf := bufio.NewReader(&h.reader)
+func (h *customStream) run() {
 	for {
-		if req, err := http.ReadRequest(buf); err == io.EOF {
+		// payload
+		payload, err := ioutil.ReadAll(&h.reader)
+
+		// build tcp message
+		if (nil == err || err == io.EOF) && len(payload) > 0 {
+			rawInputPlugin.receiveChan <- &message{msgLevel: msgLevelTcp, rawData: payload, timestampNano: time.Now().UnixNano()}
+		}
+
+		// build http request
+		if request, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(payload))); err == io.EOF {
 			// We must read until we see an EOF... very important!
 			return
 		} else if err != nil {
 			log.Println("Error reading stream", h.netFlow, h.tcpFlow, ":", err)
 		} else {
 			if nil != rawInputPlugin {
-				if reqData, err := httputil.DumpRequest(req, true); nil == err {
+				if reqData, err := httputil.DumpRequest(request, true); nil == err {
 					rawInputPlugin.receiveChan <- &message{msgLevel: msgLevelHttp, rawData: reqData, timestampNano: time.Now().UnixNano()}
 				}
 			}

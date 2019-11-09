@@ -11,6 +11,8 @@ type AppConfig struct {
 	HttpOutputPluginConfig *HttpOutputConfig `yaml:"http_output_plugin_config"`
 
 	RawInputPluginConfig *RawInputConfig `yaml:"raw_input_plugin_config"`
+
+	TcpOutputPluginConfig string `yaml:"tcp_output_plugin_config"`
 }
 
 type Option interface{}

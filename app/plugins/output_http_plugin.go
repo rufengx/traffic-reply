@@ -60,7 +60,7 @@ func NewOutputHttpPlugin(config *config.HttpOutputConfig) (*HttpOutputPlugin, er
 		receiveChan: make(chan *message, 4096),
 	}
 
-	go plugin.Run()
+	go plugin.run()
 	return plugin, nil
 }
 
@@ -68,7 +68,7 @@ func (plugin *HttpOutputPlugin) GetMessage() <-chan *message {
 	return plugin.receiveChan
 }
 
-func (plugin *HttpOutputPlugin) Run() {
+func (plugin *HttpOutputPlugin) run() {
 	for i := 0; i < plugin.workers; i++ {
 		go plugin.productWorker() // http request producer
 	}
@@ -84,7 +84,7 @@ func (plugin *HttpOutputPlugin) productWorker() {
 		}
 		select {
 		case message := <-plugin.receiveChan:
-			// case 1: parse http message
+			// case 1: send http message
 			if message.msgLevel == msgLevelHttp {
 				plugin.send(message)
 			}

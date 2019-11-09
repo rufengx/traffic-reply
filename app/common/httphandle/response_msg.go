@@ -16,7 +16,7 @@ var statusText = map[int]string{
 	OK:          "ok",
 	BAD_REQUEST: "bad request.",
 	NOT_FOUND:   "not found.",
-	CONFLICT:    "Conflict",
+	CONFLICT:    "conflict",
 }
 
 func responseMsgMapping(code int) string {

@@ -15,6 +15,8 @@ const (
 
 	pluginNameInputRaw  = "input-raw-plugin"
 	pluginNameOutputRaw = "output-raw-plugin"
+
+	pluginNameOutputTcp = "output-tcp-plugin"
 )
 
 // Define plugin message process range, you can to set multi different range. this section refer to linux Access Control Lists.

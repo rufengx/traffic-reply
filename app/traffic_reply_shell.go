@@ -28,17 +28,21 @@ var outputHttpRedirectUrl = flag.String("output-http", "", "Forwards incoming re
 
 var inputRawOnLivePort = flag.Int("input-raw", -1, "Capture traffic in current active net interface card, listen special port traffic. such as: --input-raw 80 --output-http http://abc.com")
 
+var outputTcpAddr = flag.String("output-tcp", "", "Forwards incoming packet to given tcp address. such as: --input-http 80 --output-tcp 127.0.0.1:8888")
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
 
 	*inputRawOnLivePort = 3800
-	*outputHttpRedirectUrl = "http://www.baidu.com"
+	*outputHttpRedirectUrl = "http://127.0.0.1:3800/ab"
+	*outputTcpAddr = "127.0.0.1:3800"
 
 	fmt.Println("==============================")
 	fmt.Println("input-http: ", *inputHttpPort)
 	fmt.Println("input-raw: ", *inputRawOnLivePort)
 	fmt.Println("output-http: ", *outputHttpRedirectUrl)
+	fmt.Println("output-tcp: ", *outputTcpAddr)
 	fmt.Println("==============================")
 
 	// step 1: init app config
@@ -90,6 +94,11 @@ func initAppConfig() *config.AppConfig {
 			BpfFilter:     "tcp and dst port " + strconv.Itoa(*inputRawOnLivePort),
 		}
 		appConfig.RawInputPluginConfig = rawInputPluginConfig
+	}
+
+	// case 4: tcp output plugin
+	if *outputTcpAddr != "" {
+		appConfig.TcpOutputPluginConfig = *outputTcpAddr
 	}
 
 	return appConfig

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -30,7 +31,22 @@ func main() {
 
 	//client()
 
-	acl()
+	tcp()
+}
+
+func tcp() {
+	addr, err := net.ResolveTCPAddr("tcp", ":3800")
+	if nil != err {
+		panic(err)
+	}
+
+	conn, err := net.DialTCP("tcp", nil, addr)
+	conn.SetKeepAlive(true)
+
+	n, err := conn.Write([]byte("test"))
+	defer conn.Close()
+	fmt.Println(n)
+	fmt.Println(err)
 }
 
 /**

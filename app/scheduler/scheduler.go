@@ -66,6 +66,15 @@ func (s *Scheduler) Init(config *config.AppConfig) error {
 		s.inputPlugins = append(s.inputPlugins, rawInputPlugin)
 	}
 
+	// case 4: init tcp output plugin
+	if "" != config.TcpOutputPluginConfig {
+		tcpOutputPlugin, err := plugins.NewTCPOutputPlugin(config.TcpOutputPluginConfig)
+		if nil != err {
+			return err
+		}
+		s.outputPlugins = append(s.outputPlugins, tcpOutputPlugin)
+	}
+
 	log.Print("Scheduler init plugin finished, start register plugin ...")
 	for _, in := range s.inputPlugins {
 		for _, out := range s.outputPlugins {
